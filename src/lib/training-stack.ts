@@ -173,6 +173,17 @@ export class TrainingStack extends NestedStack {
       resultPath: '$.error',
     });
 
+    const modelTrainingImagesMapping = new CfnMapping(this, 'CustomTrainingModelMapping', {
+      mapping: {
+        'aws': {
+          accountId: '366590864501',
+        },
+        'aws-cn': {
+          accountId: '753680513547',
+        },
+      },
+    });
+    const trainingImageTag = '1.0.0.202104261630';
     const modelOutputPrefix = `${dataPrefix}model_output`;
     const trainingJobTask = new class extends SageMakerCreateTrainingJob {
       public toStateJson(): object {
@@ -200,7 +211,12 @@ export class TrainingStack extends NestedStack {
       trainingJobName: TaskInput.fromJsonPathAt('$.dataProcessOutput.CompletedOn').value,
       algorithmSpecification: {
         trainingInputMode: InputMode.FILE,
-        trainingImage: DockerImage.fromAsset(this, 'TrainingImage', this._trainingImageAssets()),
+        trainingImage: DockerImage.fromEcrRepository(
+          Repository.fromRepositoryAttributes(this, 'CustomTrainingImage', {
+            repositoryArn: Repository.arnForLocalRepository('fraud-detection-with-gnn-on-dgl/training', this,
+              modelTrainingImagesMapping.findInMap(Aws.PARTITION, 'accountId')),
+            repositoryName: 'fraud-detection-with-gnn-on-dgl/training',
+          }), trainingImageTag),
       },
       inputDataConfig: [
         {
